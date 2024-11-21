@@ -24,6 +24,18 @@ function checkMustChangePassword(req, res, next) {
   next();
 }
 
+function isAuthed(req, res, next) {
+  const { email } = req.headers;
+  const user = users.find((user) => user.email === email);
+
+  if (!email || !user) {
+    return res.status(401).json({ error: "вы не авторизованы" });
+  }
+
+  req.user = user;
+  next();
+}
+
 app.post("/register", checkMustChangePassword, async (req, res) => {
   const { email, password } = req.body;
 
@@ -86,6 +98,22 @@ app.post("/change-password", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "ошибка сервера при смене пароля" });
   }
+});
+
+app.post("/delete-account", isAuthed, async (req, res) => {
+  const { currentPassword } = req.body;
+  const isMatch = await bcrypt.compare(currentPassword, req.user.password);
+
+  if (!isMatch || !currentPassword) {
+    return res.status(401).json({ error: "неверный пароль" });
+  }
+
+  const index = users.indexOf(req.user);
+  if (index !== -1) {
+    users.splice(index, 1);
+  }
+
+  res.status(200).json({ message: "аккаунт удален!" });
 });
 
 app.listen(port, () => {
