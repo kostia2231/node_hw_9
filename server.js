@@ -78,7 +78,7 @@ app.post("/login", checkMustChangePassword, async (req, res) => {
   res.status(200).json({ message: "вход успешен!" });
 });
 
-app.post("/change-password", async (req, res) => {
+app.post("/change-password", isAuthed, async (req, res) => {
   const { email, newPassword } = req.body;
 
   if (!email || !newPassword) {
@@ -116,6 +116,35 @@ app.post("/delete-account", isAuthed, async (req, res) => {
   }
 
   res.status(200).json({ message: "аккаунт удален!" });
+});
+
+app.post("/change-email", isAuthed, async (req, res) => {
+  const { currentPassword, newEmail } = req.body;
+  if (!currentPassword || !newEmail) {
+    return res.status(400).json({ error: "не все данные введены" });
+  }
+  const user = req.user;
+  if (!user) {
+    return res.status(404).json({ error: "пользователь не найден" });
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    return res.status(401).json({ error: "неверные данные для смены пароля" });
+  }
+
+  const isExists = users.find((user) => user.email === newEmail);
+  if (isExists) {
+    return res.status(400).json({ error: "этот и-мейл уже используется" });
+  }
+
+  try {
+    user.email = newEmail;
+    res.status(200).json({ message: "и-мейл успешно изменен" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "ошибка сервера при изменении и-мейл" });
+  }
 });
 
 app.get("/admin", isAuthed, isAdmin, async (_req, res) => {
